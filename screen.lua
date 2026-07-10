@@ -106,7 +106,7 @@ function FifteenScreen:buildLayout()
         board      = self.board,
         max_width  = math.max(board_max_w, 60),
         max_height = math.max(board_max_h, 60),
-        onCellTap  = function(r, c) self:onCellTap(r, c) end,
+        cellTapCallback  = function(r, c) self:onCellTap(r, c) end,
     }
 
     local board_frame = FrameContainer:new{
