@@ -50,7 +50,7 @@ function FifteenBoardWidget:init()
     }
 end
 
-function FifteenBoardWidget:onCellTap(ges)
+function FifteenBoardWidget:onCellTap(_, ges)
     if not self.paint_rect then return end
     local lx = ges.pos.x - self.paint_rect.x
     local ly = ges.pos.y - self.paint_rect.y
