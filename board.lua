@@ -4,6 +4,16 @@ local SIZES      = { 3, 4, 5 }
 local DEFAULT_N  = 4
 local SCRAMBLE_MOVES = 200
 
+-- Basenames of the grayscale PNGs in images/, one of which is picked at
+-- random for each new game. Tile value v's piece comes from position
+-- ((v-1) // n, (v-1) % n) in that image, since v is also its solved slot.
+local IMAGE_NAMES = {
+    "cat", "dog", "elephant", "horse", "owl",
+    "fox", "rabbit", "bear", "deer", "fish",
+    "castle", "lighthouse", "bridge", "windmill", "pyramid",
+    "cathedral", "skyscraper", "pagoda", "aqueduct", "watermill",
+}
+
 -- ---------------------------------------------------------------------------
 -- FifteenBoard
 -- ---------------------------------------------------------------------------
@@ -22,6 +32,7 @@ function FifteenBoard:new(opts)
         moves       = 0,
         won         = false,
         timer       = Timer:new(),
+        image       = IMAGE_NAMES[math.random(#IMAGE_NAMES)],
     }, self)
     obj:_buildSolved()
     obj:_scramble()
@@ -117,7 +128,8 @@ function FifteenBoard:_checkWin()
 end
 
 function FifteenBoard:newGame(n)
-    self.n = n or self.n
+    self.n     = n or self.n
+    self.image = IMAGE_NAMES[math.random(#IMAGE_NAMES)]
     self:_buildSolved()
     self:_scramble()
 end
@@ -142,6 +154,7 @@ function FifteenBoard:serialize()
         moves   = self.moves,
         won     = self.won,
         timer   = self.timer:serialize(),
+        image   = self.image,
     }
 end
 
@@ -164,10 +177,12 @@ function FifteenBoard:load(data)
     self.won     = data.won     or false
     self.timer   = Timer:new()
     if data.timer then self.timer:load(data.timer) end
+    self.image   = data.image or IMAGE_NAMES[math.random(#IMAGE_NAMES)]
     return true
 end
 
 FifteenBoard.SIZES       = SIZES
 FifteenBoard.DEFAULT_N   = DEFAULT_N
+FifteenBoard.IMAGE_NAMES = IMAGE_NAMES
 
 return FifteenBoard
