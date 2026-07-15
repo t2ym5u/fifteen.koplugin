@@ -19,6 +19,28 @@ local C_GRID    = Blitbuffer.COLOR_GRAY_9
 local C_TEXT    = Blitbuffer.COLOR_BLACK
 
 -- ---------------------------------------------------------------------------
+-- Picture image loading (sliced into n×n pieces at paint time)
+-- ---------------------------------------------------------------------------
+
+local _img_dir   = (debug.getinfo(1, "S").source:sub(2):match("(.*[/\\])") or "./") .. "images/"
+local _img_cache = {}  -- key "name:w:h" → blitbuffer or false (load failed)
+
+-- Loads and scales the named image to exactly (w, h) pixels so each of its
+-- n×n pieces lines up perfectly with a board cell — no per-tile scaling
+-- needed at blit time.
+local function getBoardImage(name, w, h)
+    if not name then return nil end
+    local key = name .. ":" .. w .. ":" .. h
+    local cached = _img_cache[key]
+    if cached ~= nil then return cached or nil end
+    local ok, RenderImage = pcall(require, "ui/renderimage")
+    if not ok then _img_cache[key] = false; return nil end
+    local img = RenderImage:renderImageFile(_img_dir .. name .. ".png", false, w, h)
+    _img_cache[key] = img or false
+    return img
+end
+
+-- ---------------------------------------------------------------------------
 -- FifteenBoardWidget
 -- ---------------------------------------------------------------------------
 
@@ -42,6 +64,8 @@ function FifteenBoardWidget:init()
 
     local fs = math.max(8, math.floor(cell * 0.55))
     self.face = Font:getFace("cfont", fs)
+
+    self.image_bb = getBoardImage(board.image, self.w, self.h)
 
     self.paint_rect = nil
 
@@ -87,6 +111,12 @@ function FifteenBoardWidget:paintTo(bb, x, y)
             local cy = y + (r - 1) * cell
             if v == 0 then
                 bb:paintRect(cx, cy, cell, cell, C_EMPTY)
+            elseif self.image_bb then
+                -- Piece v belongs at solved slot v, i.e. position
+                -- ((v-1) // n, (v-1) % n) in the source image.
+                local src_x = ((v - 1) % n) * cell
+                local src_y = math.floor((v - 1) / n) * cell
+                bb:blitFrom(self.image_bb, cx, cy, src_x, src_y, cell, cell)
             else
                 bb:paintRect(cx + pad, cy + pad, cell - 2*pad, cell - 2*pad, C_TILE)
                 local text = tostring(v)
