@@ -5,7 +5,7 @@ A 15-Puzzle (Sliding Puzzle) plugin for [KOReader](https://github.com/koreader/k
 
 ## Screenshot
 
-*(Screenshot to be added.)*
+![Screenshot](images/fifteen-puzzle.png)
 
 ## Rules
 
