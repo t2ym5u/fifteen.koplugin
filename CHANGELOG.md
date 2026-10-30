@@ -6,6 +6,21 @@ Reconstructed from this repository's git history: each release lists the
 feature and fix commits it carried. Version bumps, screenshot additions
 and CI syncs are left out.
 
+## [1.2.0] - 2026-10-30
+
+### Changed
+- Redesigned play screen: the board fills the room the status line leaves,
+  with one edge around it. Once the picture is reassembled, a "New game" bar
+  appears under the status.
+- The status line reads "4×4 · Moves: 12 · Time: 1:05 · Best: 80" (Best only
+  once there is one, instead of "-") and wraps in landscape.
+- The size entry in the title-bar menu reads "Size: 4×4" instead of a bare
+  "4×4".
+
+### Fixed
+- Tile numbers were scaled by DPI twice and overflowed their tiles on high-DPI
+  screens; they are now fitted to them.
+
 ## [1.1.19] - 2026-10-07
 
 ### Fixed
