@@ -62,8 +62,24 @@ function FifteenBoardWidget:init()
     self.h    = cell * n
     self.dimen = Geom:new{ w = self.w, h = self.h }
 
-    local fs = math.max(8, math.floor(cell * 0.55))
-    self.face = Font:getFace("cfont", fs)
+    -- Largest face whose ink for the widest label ("15", "24", ...) fits
+    -- the tile. Measured unbounded (with a width limit sizeUtf8Text
+    -- truncates, so a width test against it can never fail); ink height is
+    -- y_top + y_bottom, both distances from the baseline. Measuring keeps it
+    -- DPI-independent, unlike scaling a size off `cell`, which
+    -- Font:getFace() would then scale again by DPI.
+    local sample = string.rep("8", #tostring(n * n - 1))
+    local lo, hi, best = 8, math.max(8, cell), 8
+    while lo <= hi do
+        local mid = math.floor((lo + hi) / 2)
+        local m   = RenderText:sizeUtf8Text(0, Device.screen:getWidth(), Font:getFace("cfont", mid), sample, true, false)
+        if m.x <= cell * 0.7 and (m.y_top + m.y_bottom) <= cell * 0.5 then
+            best, lo = mid, mid + 1
+        else
+            hi = mid - 1
+        end
+    end
+    self.face = Font:getFace("cfont", best)
 
     self.image_bb = getBoardImage(board.image, self.w, self.h)
 

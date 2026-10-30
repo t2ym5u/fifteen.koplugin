@@ -7,7 +7,6 @@ local function lrequire(name)
     return package.loaded[key]
 end
 
-local ButtonTable     = require("ui/widget/buttontable")
 local Device          = require("device")
 local FrameContainer  = require("ui/widget/container/framecontainer")
 local HorizontalGroup = require("ui/widget/horizontalgroup")
@@ -71,13 +70,7 @@ function FifteenScreen:serializeState()
 end
 
 function FifteenScreen:buildLayout()
-    local sw          = DeviceScreen:getWidth()
-    local sh = DeviceScreen:getHeight()
     local is_landscape = self:isLandscape()
-
-    local btn_width = is_landscape
-        and math.max(math.floor(sw * 0.35), 100)
-        or  math.floor(sw * 0.9)
 
     local title_bar = self:buildTitleBar(_("Fifteen Puzzle"), function()
         return {
@@ -87,53 +80,43 @@ function FifteenScreen:buildLayout()
         }
     end)
 
-    local margin      = Size.margin.default
-    local padding     = Size.padding.large
-    local frame_extra = (padding + margin) * 2
-    local board_max_w, board_max_h
-    if is_landscape then
-        board_max_w = math.floor(sw * 0.58)
-        board_max_h = sh - frame_extra - 20
-    else
-        board_max_w = sw - frame_extra
-        board_max_h = sh - 130 - frame_extra * 2
+    -- Tapping a piece is the only move: no action bar while
+    -- playing. Once the round is over, a "New game" bar appears under the status.
+    self.status_text:setMaxWidth(self:getControlsWidth())
+    local bar = self:buildActionBar({})
+    local controls = VerticalGroup:new{ align = "center", self.status_text }
+    if bar.round_over then
+        table.insert(controls, VerticalSpan:new{ width = Size.span.vertical_large })
+        table.insert(controls, bar)
     end
 
+    -- The widget draws its own thick outer border, so the frame only pads.
+    local frame_pad = Size.padding.large
+    local budget_w, budget_h = self:getBoardBudget(title_bar, controls)
     self.board_widget = FifteenBoardWidget:new{
         board      = self.board,
-        max_width  = math.max(board_max_w, 60),
-        max_height = math.max(board_max_h, 60),
+        max_width  = math.max(budget_w - 2 * frame_pad, 60),
+        max_height = math.max(budget_h - 2 * frame_pad, 60),
         cellTapCallback  = function(r, c) self:onCellTap(r, c) end,
     }
-
     local board_frame = FrameContainer:new{
-        padding = padding,
-        margin  = margin,
+        padding    = frame_pad,
+        margin     = 0,
+        bordersize = 0,
         self.board_widget,
     }
 
-    self.status_text:setMaxWidth(is_landscape and btn_width or (self.board_widget.w + frame_extra))
-
     if is_landscape then
-        local panel = VerticalGroup:new{
-            align = "center",
-            self.status_text,
-        }
         local content = HorizontalGroup:new{
             align = "center",
             board_frame,
-            HorizontalSpan:new{ width = Size.span.horizontal_default },
-            panel,
+            HorizontalSpan:new{ width = self:getGutter() },
+            controls,
         }
         self:buildLandscapeLayout(title_bar, content)
     else
-        local content = VerticalGroup:new{
-            align = "center",
-            board_frame,
-            VerticalSpan:new{ width = Size.span.vertical_large },
-            self.status_text,
-        }
-        self:buildPortraitLayout(title_bar, content, nil)
+        self:buildPortraitLayout(title_bar, board_frame,
+            VerticalGroup:new{ align = "center", controls, VerticalSpan:new{ width = self:getGutter() } })
     end
     self:updateStatus()
 end
@@ -144,6 +127,7 @@ function FifteenScreen:onCellTap(r, c)
         self.board_widget:refresh()
         self:updateStatus()
         self.plugin:saveState(self.board:serialize())
+        self:refreshActionBar()
         if self.board.won then
             local best_key = "best_moves_" .. self.board.n
             local best = self.plugin:getSetting(best_key)
@@ -152,6 +136,19 @@ function FifteenScreen:onCellTap(r, c)
                 self.plugin:saveSetting(best_key, moves)
             end
         end
+    end
+end
+
+function FifteenScreen:isRoundOver()
+    return self.board.won and true or false
+end
+
+-- The bar only exists once the round is over, so showing or hiding it
+-- reflows the layout instead of swapping the bar in place.
+function FifteenScreen:refreshActionBar()
+    if self.action_bar and self:isRoundOver() ~= self.action_bar.round_over then
+        self:buildLayout()
+        UIManager:setDirty(self, function() return "ui", self.dimen end)
     end
 end
 
@@ -169,7 +166,7 @@ function FifteenScreen:openGridMenu()
         items[#items + 1] = { id = n, text = string.format("%d\xC3\x97%d", n, n) }
     end
     MenuHelper.openPickerMenu{
-        title      = _("Grid size"),
+        title      = _("Size"),
         items      = items,
         current_id = self.plugin:getSetting("grid_n", FifteenBoard.DEFAULT_N),
         parent     = self,
@@ -192,18 +189,19 @@ function FifteenScreen:updateStatus(msg)
         local best = self.plugin:getSetting(best_key)
         status = T(_("Solved in %1 moves! Best: %2"), self.board.moves, best or self.board.moves)
     else
-        local time_str = self.board.timer:format()
-        local best_key = "best_moves_" .. self.board.n
-        local best = self.plugin:getSetting(best_key)
-        local best_str = best and tostring(best) or "-"
-        status = T(_("Moves: %1  Time: %2  Best: %3"), self.board.moves, time_str, best_str)
+        local n    = self.board.n
+        local best = self.plugin:getSetting("best_moves_" .. n)
+        status = self:joinStatus(T("%1\xC3\x97%2", n, n),
+            T(_("Moves: %1"), self.board.moves),
+            T(_("Time: %1"), self.board.timer:format()),
+            best and T(_("Best: %1"), best))
     end
     ScreenBase.updateStatus(self, status)
 end
 
 function FifteenScreen:_gridLabel()
     local n = self.plugin:getSetting("grid_n", FifteenBoard.DEFAULT_N)
-    return string.format("%d\xC3\x97%d", n, n)
+    return T(_("Size: %1"), string.format("%d\xC3\x97%d", n, n))
 end
 
 return FifteenScreen
