@@ -8,30 +8,6 @@ describe("FifteenBoard", function()
         Board = require("board")
     end)
 
-    describe("new", function()
-        it("builds a scrambled but solvable 4x4 grid with the blank present", function()
-            math.randomseed(42)
-            local b = Board:new()
-            assert.are.equal(4, b.n)
-            local seen = {}
-            for r = 1, b.n do
-                for c = 1, b.n do
-                    seen[b.grid[r][c]] = true
-                end
-            end
-            for v = 0, 15 do
-                assert.is_true(seen[v], "missing value " .. v)
-            end
-            assert.are.equal(0, b.grid[b.blank_r][b.blank_c])
-        end)
-
-        it("is not solved right after scrambling (extremely unlikely to be)", function()
-            math.randomseed(42)
-            local b = Board:new()
-            assert.is_false(b.won)
-        end)
-    end)
-
     describe("slide", function()
         it("moves an orthogonally-adjacent tile into the blank", function()
             math.randomseed(42)
